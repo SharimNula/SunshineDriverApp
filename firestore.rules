@@ -1,0 +1,145 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validRole(role) {
+      return role in ['Driver', 'Guide', 'Dispatcher', 'Supervisor', 'Ops Lead'];
+    }
+
+    function validStatus(status) {
+      return status in ['sharing', 'paused', 'offline'];
+    }
+
+    function validLocation(location) {
+      return location == null || (
+        location.keys().hasOnly(['latitude', 'longitude', 'accuracy', 'heading', 'speed', 'address', 'updatedAt', 'source']) &&
+        location.latitude is number &&
+        location.longitude is number &&
+        location.latitude >= -90 &&
+        location.latitude <= 90 &&
+        location.longitude >= -180 &&
+        location.longitude <= 180 &&
+        (location.accuracy == null || location.accuracy is number) &&
+        (location.heading == null || location.heading is number) &&
+        (location.speed == null || location.speed is number) &&
+        (location.address == null || (location.address is string && location.address.size() <= 160)) &&
+        (!location.keys().hasAny(['updatedAt']) || (location.updatedAt is string && location.updatedAt.size() > 0 && location.updatedAt.size() <= 40)) &&
+        location.source == 'gps'
+      );
+    }
+
+    function canCreateRoomContent() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Driver';
+    }
+
+    function validUserProfile(data) {
+      return data.keys().hasOnly(['name', 'email', 'role', 'shiftLabel', 'accent', 'updatedAt']) &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 80 &&
+        data.email is string &&
+        data.email.size() > 0 &&
+        data.email.size() <= 120 &&
+        validRole(data.role) &&
+        data.shiftLabel is string &&
+        data.shiftLabel.size() > 0 &&
+        data.shiftLabel.size() <= 40 &&
+        data.accent is string &&
+        data.accent.size() > 0;
+    }
+
+    function validMember(data) {
+      return data.keys().hasOnly(['name', 'email', 'role', 'accent', 'shiftLabel', 'status', 'sharingEnabled', 'vehicleName', 'location', 'lastNote', 'updatedAt']) &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 80 &&
+        data.email is string &&
+        data.email.size() > 0 &&
+        data.email.size() <= 120 &&
+        validRole(data.role) &&
+        data.accent is string &&
+        data.accent.size() > 0 &&
+        data.shiftLabel is string &&
+        data.shiftLabel.size() > 0 &&
+        data.shiftLabel.size() <= 40 &&
+        validStatus(data.status) &&
+        data.sharingEnabled is bool &&
+        (!data.keys().hasAny(['vehicleName']) || data.vehicleName == null || (data.vehicleName is string && data.vehicleName.size() > 0 && data.vehicleName.size() <= 80)) &&
+        validLocation(data.location) &&
+        data.lastNote is string &&
+        data.lastNote.size() <= 200;
+    }
+
+    function validMessage(data) {
+      return data.keys().hasOnly(['authorId', 'authorName', 'body', 'tone', 'createdAt']) &&
+        data.authorId == request.auth.uid &&
+        data.authorName is string &&
+        data.authorName.size() > 0 &&
+        data.authorName.size() <= 80 &&
+        data.body is string &&
+        data.body.size() > 0 &&
+        data.body.size() <= 500 &&
+        data.tone == 'user';
+    }
+
+    function validFile(data) {
+      return data.keys().hasOnly(['name', 'size', 'mimeType', 'uri', 'storagePath', 'note', 'sharedBy', 'sharedById', 'sharedAt']) &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 160 &&
+        (data.size == null || data.size is number) &&
+        (data.mimeType == null || data.mimeType is string) &&
+        data.uri is string &&
+        data.uri.size() > 0 &&
+        data.storagePath is string &&
+        data.storagePath.matches('rooms/sunshine-relay/files/' + request.auth.uid + '/.*') &&
+        data.note is string &&
+        data.note.size() <= 300 &&
+        data.sharedBy is string &&
+        data.sharedBy.size() > 0 &&
+        data.sharedBy.size() <= 80 &&
+        data.sharedById == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isSelf(userId);
+      allow create, update: if isSelf(userId) && validUserProfile(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /rooms/sunshine-relay/members/{userId} {
+      allow read: if signedIn();
+      allow create, update: if isSelf(userId) && validMember(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /rooms/sunshine-relay/messages/{messageId} {
+      allow read: if signedIn();
+      allow create: if canCreateRoomContent() && validMessage(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /rooms/sunshine-relay/files/{fileId} {
+      allow read: if signedIn();
+      allow create: if canCreateRoomContent() && validFile(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
+
+
