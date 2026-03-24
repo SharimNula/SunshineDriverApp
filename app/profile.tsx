@@ -205,14 +205,14 @@ export default function ProfileScreen() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Account Credentials</Text>
               <Text style={styles.sectionSubtitle}>
-                Update your Firebase sign-in email and password. Email changes require verification.
+                Update your sign-in email and password. Email changes require verification.
               </Text>
             </View>
 
             <Text style={styles.label}>Current Email</Text>
             <View style={styles.readonlyCard}>
               <Text style={styles.readonlyValue}>{activeSession.email}</Text>
-              <Text style={styles.readonlyHint}>This is your current Firebase sign-in email.</Text>
+              <Text style={styles.readonlyHint}>This is your current sign-in email.</Text>
             </View>
 
             <Text style={styles.label}>New Email</Text>

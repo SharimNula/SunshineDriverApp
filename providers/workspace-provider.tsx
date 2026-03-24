@@ -1,11 +1,11 @@
 import * as Location from 'expo-location';
 import {
-  EmailAuthProvider,
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  signOut as firebaseSignOut,
   onAuthStateChanged,
   reauthenticateWithCredential,
   signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
   updatePassword,
   updateProfile,
   verifyBeforeUpdateEmail,
@@ -36,8 +36,8 @@ import {
   firebaseAuth,
   firebaseConfigured,
   firebaseMissingKeys,
-  firestore,
   firebaseStorage,
+  firestore,
 } from '@/firebase/client';
 import {
   ChatMessage,
@@ -211,7 +211,7 @@ function friendlyAuthError(error: unknown) {
     case 'auth/too-many-requests':
       return 'Too many authentication attempts were made. Please wait a bit and try again.';
     default:
-      return 'Firebase could not complete that request right now.';
+      return 'System could not complete that request right now.';
   }
 }
 
@@ -626,7 +626,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
           { merge: true }
         );
       } catch {
-        setWorkspaceError('Signed out, but your offline status could not be synced to Firestore.');
+        setWorkspaceError('Signed out, but your offline status could not be synced at this time.');
       }
     }
 
@@ -776,7 +776,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       await announceActivityMessage(`${session.name} shared ${input.name}.`);
       return true;
     } catch {
-      setWorkspaceError('File upload failed. Check Firebase Storage and try again.');
+      setWorkspaceError('File upload failed. Check Storage and try again.');
       return false;
     }
   }
@@ -849,7 +849,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
               });
             },
             () => {
-              setWorkspaceError('User profile could not be refreshed from Firestore.');
+              setWorkspaceError('User profile could not be refreshed at this time.');
             }
           )
         );
@@ -912,7 +912,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
               setTeamMembers(members);
             },
             () => {
-              setWorkspaceError('Team presence could not be loaded from Firestore.');
+              setWorkspaceError('Team presence could not be loaded at this time.');
             }
           )
         );
@@ -941,7 +941,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
               );
             },
             () => {
-              setWorkspaceError('Chat could not be loaded from Firestore.');
+              setWorkspaceError('Chat could not be loaded at this time.');
             }
           )
         );
@@ -969,14 +969,14 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
               );
             },
             () => {
-              setWorkspaceError('Shared files could not be loaded from Firebase.');
+              setWorkspaceError('Shared files could not be loaded at this time.');
             }
           )
         );
 
         workspaceListenersRef.current = nextListeners;
       } catch {
-        setWorkspaceError('Firebase could not load the workspace right now.');
+        setWorkspaceError('System could not load the workspace right now.');
       } finally {
         setAuthReady(true);
       }
@@ -1104,7 +1104,7 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
           return;
         }
 
-        setWorkspaceError('Live location could not be synced to Firestore.');
+        setWorkspaceError('Live location could not be synced, please try again later.');
         setSharingEnabledState(false);
         await setDoc(
           doc(locationDb, 'rooms', ROOM_ID, 'members', memberId),

@@ -111,7 +111,7 @@ export default function FilesScreen() {
           <Panel style={styles.libraryPanel}>
             <View style={styles.libraryHeader}>
               <Text style={styles.libraryTitle}>Shared Library</Text>
-              <Text style={styles.librarySubtitle}>{sharedFiles.length} files in Firebase</Text>
+              <Text style={styles.librarySubtitle}>{sharedFiles.length} files in shared workspace</Text>
             </View>
 
             {sharedFiles.length === 0 ? (
@@ -134,7 +134,7 @@ export default function FilesScreen() {
 
                 <View style={styles.fileFooter}>
                   <Text style={styles.fileFooterText}>{formatFileSize(file.size)}</Text>
-                  <Text style={styles.fileFooterText}>Stored in Firebase Storage</Text>
+                  <Text style={styles.fileFooterText}>Stored in Workspace Storage</Text>
                 </View>
 
                 {file.uri ? (

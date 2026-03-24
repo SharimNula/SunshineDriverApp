@@ -3,12 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { AppTheme } from '@/constants/theme';
 import { TeamMember } from '@/types/relay';
+import { formatCoordinates, formatRelativeTime } from '@/utils/formatters';
 import {
   getLiveMapLatestUpdate,
   getLiveMapMarkerLabel,
   getLiveMapMembers,
 } from '@/utils/live-map';
-import { formatCoordinates, formatRelativeTime } from '@/utils/formatters';
 
 type LiveMapBoardProps = {
   members: TeamMember[];
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: AppTheme.mutedText,
-    fontSize: 13,
+    fontSize: 12,
   },
   noticeCard: {
     flexDirection: 'row',

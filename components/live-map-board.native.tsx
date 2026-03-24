@@ -4,6 +4,7 @@ import MapView, { Marker, type Region } from 'react-native-maps';
 
 import { AppTheme } from '@/constants/theme';
 import { TeamMember } from '@/types/relay';
+import { formatCoordinates, formatRelativeTime } from '@/utils/formatters';
 import {
   type LiveMapMember,
   getLiveMapCoordinateKey,
@@ -11,7 +12,6 @@ import {
   getLiveMapMarkerTitle,
   getLiveMapMembers,
 } from '@/utils/live-map';
-import { formatCoordinates, formatRelativeTime } from '@/utils/formatters';
 
 type LiveMapBoardProps = {
   members: TeamMember[];
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: AppTheme.mutedText,
-    fontSize: 13,
+    fontSize: 12,
   },
   mapSurface: {
     height: 280,

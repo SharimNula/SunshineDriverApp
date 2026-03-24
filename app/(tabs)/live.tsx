@@ -10,8 +10,8 @@ import { Panel } from '@/components/panel';
 import { StatusChip } from '@/components/status-chip';
 import { AppTheme } from '@/constants/theme';
 import { useWorkspace } from '@/providers/workspace-provider';
-import { isLiveMapRole } from '@/utils/live-map';
 import { formatCoordinates, formatRelativeTime, formatSpeed } from '@/utils/formatters';
+import { isLiveMapRole } from '@/utils/live-map';
 
 function signalTone(permissionState: 'idle' | 'granted' | 'denied', sharingEnabled: boolean) {
   if (permissionState === 'denied') {
@@ -172,7 +172,7 @@ export default function LiveScreen() {
               <Text style={styles.waitingText}>
                 {permissionState === 'denied'
                   ? 'Location permission is blocked. Turn it back on, then start sharing again.'
-                  : 'Start sharing to publish your live device location to Firestore.'}
+                  : 'Start sharing to publish your live device location.'}
               </Text>
             )}
           </Panel>

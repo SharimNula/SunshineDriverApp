@@ -35,7 +35,7 @@ export default function SignInScreen() {
     register,
     signIn,
   } = useWorkspace();
-  const [mode, setMode] = useState<AuthMode>('register');
+  const [mode, setMode] = useState<AuthMode>('sign-in');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,7 +71,7 @@ export default function SignInScreen() {
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
-            <StatusChip label="Firebase Workspace" tone="accent" />
+            <StatusChip label="Dispatch Workspace" tone="accent" />
             <Text style={styles.eyebrow}>Sunshine Tours Operations Relay</Text>
             <Text style={styles.title}>Live Operations Room</Text>
 
@@ -178,7 +178,7 @@ export default function SignInScreen() {
                 }}
                 style={[styles.primaryButton, !firebaseConfigured || authBusy ? styles.primaryButtonDisabled : null]}>
                 <Text style={styles.primaryButtonText}>
-                  {authBusy ? 'Working...' : mode === 'register' ? 'Create Firebase account' : 'Sign in to workspace'}
+                  {authBusy ? 'Working...' : mode === 'register' ? 'Create account' : 'Sign in'}
                 </Text>
               </Pressable>
             </Panel>
