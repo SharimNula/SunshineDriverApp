@@ -1,50 +1,63 @@
-# Welcome to your Expo app 👋
+# Sunshine Driver App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This is an Expo Router app for live team location sharing, chat, and file exchange with Firebase Auth, Firestore, Storage, Emulator Suite support, and Firebase Hosting for the web build.
 
-## Get started
+## Local development
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+1. Install dependencies.
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Start the app.
 
-## Learn more
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Optional: run the Firebase emulators.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run emulators
+```
 
-## Join the community
+## Firebase Hosting
 
-Join our community of developers creating universal apps.
+This project is already configured for Expo static web export and Firebase Hosting.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. Build the web app into `dist`.
+
+```bash
+npm run export:web
+```
+
+2. Deploy to your default Firebase project.
+
+```bash
+npm run hosting:deploy
+```
+
+3. Optional: deploy to a preview channel.
+
+```bash
+npm run hosting:preview
+```
+
+The Firebase Hosting configuration lives in `firebase.json` and serves the Expo web export from `dist` with clean URLs and long-lived caching for static assets.
+
+## Firebase project selection
+
+The current default Firebase project is stored in `.firebaserc`.
+
+If you need to switch projects:
+
+```bash
+firebase use <project-id>
+```
+
+## Notes
+
+- Firestore rules are defined in `firestore.rules`.
+- Storage rules are defined in `storage.rules`.
+- If you change Firebase rules and use hosted Firebase instead of the emulator, redeploy them with the Firebase CLI.
