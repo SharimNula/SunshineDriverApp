@@ -1,6 +1,6 @@
 # Sunshine Driver App
 
-This is an Expo Router app for live team location sharing, chat, and file exchange with Firebase Auth, Firestore, Storage, Emulator Suite support, and Firebase Hosting for the web build.
+This is an Expo Router app for live team location sharing, chat, and file exchange with Firebase Auth, Firestore, Storage, Emulator Suite support, Firebase Hosting, and Firebase App Hosting support for the web build.
 
 ## Local development
 
@@ -22,9 +22,25 @@ npx expo start
 npm run emulators
 ```
 
+## Firebase App Hosting
+
+This repo is prepared for Firebase App Hosting with:
+
+- `apphosting.yaml` for build, run, and build-time environment configuration.
+- `server.js` to serve the Expo static export from `dist` in the App Hosting runtime.
+- `npm run build` to produce the web export.
+
+Once you create an App Hosting backend in Firebase and connect this repo, App Hosting can build and run the app using the checked-in config.
+
+### Key files
+
+- `apphosting.yaml`
+- `server.js`
+- `package.json`
+
 ## Firebase Hosting
 
-This project is already configured for Expo static web export and Firebase Hosting.
+This project is also configured for classic Firebase Hosting.
 
 1. Build the web app into `dist`.
 

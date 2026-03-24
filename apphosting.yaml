@@ -1,0 +1,39 @@
+scripts:
+  buildCommand: npm run build
+  runCommand: node server.js
+
+env:
+  - variable: EXPO_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyCWY-TUNcB7H81lttGr7HxuCQH1ki2QR-I"
+    availability:
+      - BUILD
+  - variable: EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "driverapp-da942.firebaseapp.com"
+    availability:
+      - BUILD
+  - variable: EXPO_PUBLIC_FIREBASE_PROJECT_ID
+    value: "driverapp-da942"
+    availability:
+      - BUILD
+  - variable: EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "driverapp-da942.firebasestorage.app"
+    availability:
+      - BUILD
+  - variable: EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "1025107864394"
+    availability:
+      - BUILD
+  - variable: EXPO_PUBLIC_FIREBASE_APP_ID
+    value: "1:1025107864394:web:f4a99377adefa7f91aafb3"
+    availability:
+      - BUILD
+  - variable: EXPO_PUBLIC_USE_FIREBASE_EMULATORS
+    value: "false"
+    availability:
+      - BUILD
+
+outputFiles:
+  serverApp:
+    include:
+      - dist
+      - server.js

@@ -11,9 +11,11 @@
                     "lint":  "expo lint",
                     "emulators":  "firebase emulators:start --only auth,firestore,storage",
                     "emulators:export":  "firebase emulators:start --only auth,firestore,storage --import ./.firebase/emulator-data --export-on-exit",
-                    "export:web":  "expo export --platform web",
-                    "hosting:preview":  "npm run export:web \u0026\u0026 firebase hosting:channel:deploy preview",
-                    "hosting:deploy":  "npm run export:web \u0026\u0026 firebase deploy --only hosting"
+                    "export:web":  "npm run build",
+                    "hosting:preview":  "npm run export:web && firebase hosting:channel:deploy preview",
+                    "hosting:deploy":  "npm run export:web && firebase deploy --only hosting",
+                    "build":  "expo export --platform web",
+                    "apphosting:serve":  "node server.js"
                 },
     "dependencies":  {
                          "@expo/vector-icons":  "^15.0.3",
@@ -57,3 +59,4 @@
                         },
     "private":  true
 }
+
