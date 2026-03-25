@@ -1,0 +1,54 @@
+{
+  "cli": {
+    "version": ">= 18.4.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCWY-TUNcB7H81lttGr7HxuCQH1ki2QR-I",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "driverapp-da942.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "driverapp-da942",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "driverapp-da942.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1025107864394",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1025107864394:web:f4a99377adefa7f91aafb3",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATORS": "false"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCWY-TUNcB7H81lttGr7HxuCQH1ki2QR-I",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "driverapp-da942.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "driverapp-da942",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "driverapp-da942.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1025107864394",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1025107864394:web:f4a99377adefa7f91aafb3",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATORS": "false"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCWY-TUNcB7H81lttGr7HxuCQH1ki2QR-I",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "driverapp-da942.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "driverapp-da942",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "driverapp-da942.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1025107864394",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1025107864394:web:f4a99377adefa7f91aafb3",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATORS": "false"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

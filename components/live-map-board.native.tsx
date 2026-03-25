@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import Constants from 'expo-constants';
 import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 
@@ -23,13 +23,6 @@ const FALLBACK_REGION: Region = {
   longitude: -98.5795,
   latitudeDelta: 28,
   longitudeDelta: 28,
-};
-
-const EDGE_PADDING = {
-  top: 72,
-  right: 64,
-  bottom: 48,
-  left: 64,
 };
 
 function buildRegion(vehicleMarkers: LiveMapMember[]): Region {
@@ -64,54 +57,10 @@ function buildRegion(vehicleMarkers: LiveMapMember[]): Region {
 }
 
 export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
-  const mapRef = useRef<MapView | null>(null);
-  const previousCoordinateKeyRef = useRef('');
-  const [mapReady, setMapReady] = useState(false);
   const vehicleMarkers = getLiveMapMembers(members);
-
-  useEffect(() => {
-    if (!mapReady || !mapRef.current) {
-      return;
-    }
-
-    const nextVehicleMarkers = getLiveMapMembers(members);
-
-    if (!nextVehicleMarkers.length) {
-      previousCoordinateKeyRef.current = '';
-      return;
-    }
-
-    const nextCoordinateKey = getLiveMapCoordinateKey(nextVehicleMarkers);
-
-    if (nextCoordinateKey === previousCoordinateKeyRef.current) {
-      return;
-    }
-
-    previousCoordinateKeyRef.current = nextCoordinateKey;
-
-    const coordinates = nextVehicleMarkers.map((member) => ({
-      latitude: member.location.latitude,
-      longitude: member.location.longitude,
-    }));
-
-    if (coordinates.length === 1) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: coordinates[0].latitude,
-          longitude: coordinates[0].longitude,
-          latitudeDelta: 0.08,
-          longitudeDelta: 0.08,
-        },
-        450
-      );
-      return;
-    }
-
-    mapRef.current.fitToCoordinates(coordinates, {
-      edgePadding: EDGE_PADDING,
-      animated: true,
-    });
-  }, [mapReady, members]);
+  const hasGoogleMapsApiKey =
+    Boolean(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY) ||
+    Constants.expoConfig?.extra?.googleMapsConfigured === true;
 
   if (!vehicleMarkers.length) {
     return (
@@ -129,7 +78,27 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
     );
   }
 
+  if (!hasGoogleMapsApiKey) {
+    return (
+      <View style={styles.board}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Live Vehicle Map</Text>
+          <Text style={styles.subtitle}>{vehicleMarkers.length} active markers</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Map unavailable in this build</Text>
+          <Text style={styles.caption}>
+            Add `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` to your EAS environment, rebuild the app,
+            and the live vehicle map will appear here.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   const latestUpdate = getLiveMapLatestUpdate(vehicleMarkers);
+  const mapRegion = buildRegion(vehicleMarkers);
+  const mapKey = getLiveMapCoordinateKey(vehicleMarkers);
 
   return (
     <View style={styles.board}>
@@ -140,13 +109,10 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
 
       <View style={styles.mapSurface}>
         <MapView
-          initialRegion={buildRegion(vehicleMarkers)}
+          initialRegion={mapRegion}
+          key={mapKey}
           loadingEnabled
-          onMapReady={() => {
-            setMapReady(true);
-          }}
           pitchEnabled={false}
-          ref={mapRef}
           rotateEnabled={false}
           showsCompass={false}
           showsMyLocationButton={false}
@@ -221,5 +187,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    color: AppTheme.text,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 10,
+    textAlign: 'center',
   },
 });

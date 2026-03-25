@@ -27,6 +27,10 @@ env:
     value: "1:1025107864394:web:f4a99377adefa7f91aafb3"
     availability:
       - BUILD
+  - variable: EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY
+    value: "AIzaSyAugkconQsH4MeWi2cUY_iExonmBYLtZ5k"
+    availability:
+      - BUILD
   - variable: EXPO_PUBLIC_USE_FIREBASE_EMULATORS
     value: "false"
     availability:

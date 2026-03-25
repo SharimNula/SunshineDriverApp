@@ -31,6 +31,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 
 import {
   firebaseAuth,
@@ -274,6 +275,8 @@ function canReuseResolvedAddress(
     Math.abs(coords.longitude - cached.longitude) < 0.0006
   );
 }
+
+
 
 export function WorkspaceProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<SessionUser | null>(null);
@@ -1049,9 +1052,23 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
       );
     }
 
+    async function publishLocation(coords: Location.LocationObjectCoords) {
+      try {
+        await persistLocation(coords);
+      } catch {
+        if (active) {
+          setWorkspaceError('Live location could not be synced, please try again later.');
+        }
+      }
+    }
+
     async function beginSharing() {
       try {
-        const permission = await Location.requestForegroundPermissionsAsync();
+        const existingPermission = await Location.getForegroundPermissionsAsync();
+        const permission =
+          existingPermission.status === 'granted'
+            ? existingPermission
+            : await Location.requestForegroundPermissionsAsync();
 
         if (!active) {
           return;
@@ -1073,13 +1090,18 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        if (Platform.OS === 'android') {
+          await Location.enableNetworkProviderAsync().catch(() => null);
+        }
+
         setPermissionState('granted');
-        const currentPosition = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
+        const currentPosition = await Location.getLastKnownPositionAsync({
+          maxAge: 60_000,
+          requiredAccuracy: 150,
         }).catch(() => null);
 
         if (currentPosition && active) {
-          await persistLocation(currentPosition.coords);
+          await publishLocation(currentPosition.coords);
         }
 
         const subscription = await Location.watchPositionAsync(
@@ -1089,7 +1111,11 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
             distanceInterval: 10,
           },
           (position) => {
-            void persistLocation(position.coords);
+            if (!active) {
+              return;
+            }
+
+            void publishLocation(position.coords);
           }
         );
 
@@ -1166,6 +1192,9 @@ export function useWorkspace() {
 
   return context;
 }
+
+
+
 
 
 

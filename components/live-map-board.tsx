@@ -1,22 +1,220 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppTheme } from '@/constants/theme';
 import { TeamMember } from '@/types/relay';
 import { formatCoordinates, formatRelativeTime } from '@/utils/formatters';
 import {
+  getLiveMapCoordinateKey,
   getLiveMapLatestUpdate,
   getLiveMapMarkerLabel,
+  getLiveMapMarkerTitle,
   getLiveMapMembers,
 } from '@/utils/live-map';
+import {
+  escapeMapHtml,
+  getGoogleMapsWebApiKey,
+  loadGoogleMapsWebApi,
+} from '@/utils/google-maps-web';
 
 type LiveMapBoardProps = {
   members: TeamMember[];
   currentUserId?: string;
 };
 
+type WebLiveMapMember = ReturnType<typeof getLiveMapMembers>[number];
+
+function buildMarkerIcon(color: string) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="48" viewBox="0 0 40 48" fill="none">
+      <path fill="${color}" d="M20 0C8.954 0 0 8.954 0 20c0 13.667 17.325 27.573 18.063 28.157a3 3 0 0 0 3.874 0C22.675 47.573 40 33.667 40 20 40 8.954 31.046 0 20 0Z"/>
+      <circle cx="20" cy="20" r="8" fill="#F8FDFF"/>
+    </svg>
+  `.trim();
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function buildInfoWindowContent(member: WebLiveMapMember, isCurrentUser: boolean) {
+  return `
+    <div style="min-width: 180px; color: #10222B; font-family: Arial, sans-serif;">
+      <div style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">
+        ${escapeMapHtml(getLiveMapMarkerTitle(member))}${isCurrentUser ? ' (You)' : ''}
+      </div>
+      <div style="font-size: 12px; margin-bottom: 4px;">${escapeMapHtml(member.role)}</div>
+      <div style="font-size: 12px; line-height: 1.5; margin-bottom: 6px;">
+        ${escapeMapHtml(member.location.address ?? 'Address unavailable')}
+      </div>
+      <div style="font-size: 11px; color: #425A65;">
+        ${escapeMapHtml(formatCoordinates(member.location.latitude, member.location.longitude))}
+      </div>
+      <div style="font-size: 11px; color: #425A65; margin-top: 2px;">
+        Updated ${escapeMapHtml(formatRelativeTime(member.location.updatedAt))}
+      </div>
+    </div>
+  `.trim();
+}
+
 export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
   const vehicleMarkers = getLiveMapMembers(members);
+  const latestUpdate = getLiveMapLatestUpdate(vehicleMarkers);
+  const coordinateKey = getLiveMapCoordinateKey(vehicleMarkers);
+  const markerStateKey = vehicleMarkers
+    .map(
+      (member) =>
+        `${member.id}:${member.vehicleName ?? ''}:${member.location.address ?? ''}:${member.location.updatedAt}`
+    )
+    .join('|');
+  const webMapsApiKey = getGoogleMapsWebApiKey();
+  const mapHostRef = useRef<any>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRefs = useRef<any[]>([]);
+  const infoWindowRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      markerRefs.current.forEach((marker) => marker.setMap(null));
+      markerRefs.current = [];
+      infoWindowRef.current?.close?.();
+      infoWindowRef.current = null;
+      mapInstanceRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!vehicleMarkers.length) {
+      markerRefs.current.forEach((marker) => marker.setMap(null));
+      markerRefs.current = [];
+      setMapReady(false);
+      setMapError(null);
+      return;
+    }
+
+    if (!webMapsApiKey) {
+      markerRefs.current.forEach((marker) => marker.setMap(null));
+      markerRefs.current = [];
+      setMapReady(false);
+      setMapError(null);
+      return;
+    }
+
+    const mapHost = mapHostRef.current as HTMLElement | null;
+
+    if (!mapHost) {
+      return;
+    }
+
+    let cancelled = false;
+    setMapReady(false);
+
+    async function renderMap() {
+      try {
+        await loadGoogleMapsWebApi(webMapsApiKey);
+
+        if (cancelled) {
+          return;
+        }
+
+        const googleMaps = (window as Window & { google?: { maps?: any } }).google?.maps;
+
+        if (!googleMaps) {
+          throw new Error('Google Maps JavaScript API was not available.');
+        }
+
+        if (!mapInstanceRef.current) {
+          const firstLocation = vehicleMarkers[0].location;
+
+          mapInstanceRef.current = new googleMaps.Map(mapHost, {
+            center: {
+              lat: firstLocation.latitude,
+              lng: firstLocation.longitude,
+            },
+            zoom: vehicleMarkers.length === 1 ? 13 : 5,
+            backgroundColor: '#081B22',
+            clickableIcons: false,
+            fullscreenControl: false,
+            mapTypeControl: false,
+            streetViewControl: false,
+            gestureHandling: 'cooperative',
+          });
+
+          infoWindowRef.current = new googleMaps.InfoWindow();
+        }
+
+        const map = mapInstanceRef.current;
+        markerRefs.current.forEach((marker) => marker.setMap(null));
+
+        markerRefs.current = vehicleMarkers.map((member) => {
+          const marker = new googleMaps.Marker({
+            map,
+            position: {
+              lat: member.location.latitude,
+              lng: member.location.longitude,
+            },
+            title: getLiveMapMarkerTitle(member),
+            label: {
+              text: member.name.charAt(0).toUpperCase(),
+              color: '#10222B',
+              fontSize: '12px',
+              fontWeight: '700',
+            },
+            icon: {
+              url: buildMarkerIcon(member.id === currentUserId ? AppTheme.accent : member.accent),
+            },
+          });
+
+          marker.addListener('click', () => {
+            infoWindowRef.current?.setContent(
+              buildInfoWindowContent(member, member.id === currentUserId)
+            );
+            infoWindowRef.current?.open({
+              anchor: marker,
+              map,
+            });
+          });
+
+          return marker;
+        });
+
+        if (vehicleMarkers.length === 1) {
+          const location = vehicleMarkers[0].location;
+          map.setCenter({
+            lat: location.latitude,
+            lng: location.longitude,
+          });
+          map.setZoom(13);
+        } else {
+          const bounds = new googleMaps.LatLngBounds();
+
+          vehicleMarkers.forEach((member) => {
+            bounds.extend({
+              lat: member.location.latitude,
+              lng: member.location.longitude,
+            });
+          });
+
+          map.fitBounds(bounds, 72);
+        }
+
+        setMapError(null);
+        setMapReady(true);
+      } catch {
+        if (!cancelled) {
+          setMapError('The browser map could not be loaded right now.');
+          setMapReady(false);
+        }
+      }
+    }
+
+    void renderMap();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [coordinateKey, currentUserId, markerStateKey, vehicleMarkers, webMapsApiKey]);
 
   if (!vehicleMarkers.length) {
     return (
@@ -34,7 +232,7 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
     );
   }
 
-  const latestUpdate = getLiveMapLatestUpdate(vehicleMarkers);
+  const showMapFallback = !webMapsApiKey || Boolean(mapError);
 
   return (
     <View style={styles.board}>
@@ -43,13 +241,25 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
         <Text style={styles.subtitle}>{vehicleMarkers.length} active markers</Text>
       </View>
 
-      <View style={styles.noticeCard}>
-        <MaterialIcons name="map" size={18} color={AppTheme.accentSoft} />
-        <Text style={styles.noticeText}>
-          Native iOS and Android builds show the real-time map. This web view mirrors the active
-          vehicle marker feed.
-        </Text>
-      </View>
+      {showMapFallback ? (
+        <View style={styles.noticeCard}>
+          <MaterialIcons name="map" size={18} color={AppTheme.accentSoft} />
+          <Text style={styles.noticeText}>
+            {webMapsApiKey
+              ? mapError ?? 'The browser map is unavailable right now.'
+              : 'Add EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY with a browser-restricted Maps JavaScript API key to enable the live web map.'}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.mapSurface}>
+          <View ref={mapHostRef} style={styles.mapCanvas} />
+          {!mapReady ? (
+            <View style={styles.mapOverlay}>
+              <Text style={styles.mapOverlayText}>Loading live vehicle map...</Text>
+            </View>
+          ) : null}
+        </View>
+      )}
 
       <View style={styles.list}>
         {vehicleMarkers.map((member) => (
@@ -113,6 +323,31 @@ const styles = StyleSheet.create({
     color: AppTheme.text,
     fontSize: 13,
     lineHeight: 19,
+  },
+  mapSurface: {
+    minHeight: 320,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(116, 166, 181, 0.24)',
+    backgroundColor: '#081B22',
+    position: 'relative',
+  },
+  mapCanvas: {
+    flex: 1,
+    minHeight: 320,
+  },
+  mapOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(8, 27, 34, 0.26)',
+    paddingHorizontal: 20,
+  },
+  mapOverlayText: {
+    color: AppTheme.text,
+    fontSize: 13,
+    fontWeight: '600',
   },
   list: {
     gap: 10,
