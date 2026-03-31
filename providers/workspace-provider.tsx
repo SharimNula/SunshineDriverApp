@@ -122,12 +122,15 @@ type ResolvedAddress = {
   label: string | null;
   latitude: number;
   longitude: number;
+  stableSince: number;
+  resolvedAt: number | null;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 const ROOM_ID = 'sunshine-relay';
 const DEFAULT_SHIFT_LABEL = 'Active Shift';
+const ADDRESS_DWELL_INTERVAL_MS = 5 * 60 * 1000;
 const ROLE_ACCENTS: Record<UserRole, string> = {
   Driver: '#FF7A59',
   Guide: '#9FE2C0',
@@ -674,33 +677,48 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     }
 
     setWorkspaceError(null);
-    setSharingEnabledState(nextValue);
 
     if (!nextValue) {
+      const previousPermissionState = permissionState;
+      setSharingEnabledState(false);
       stopLocationFeed();
       setPermissionState('idle');
+
+      try {
+        await setDoc(
+          doc(activeFirestore, 'rooms', ROOM_ID, 'members', session.id),
+          {
+            status: 'paused',
+            sharingEnabled: false,
+            location: null,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch {
+        setSharingEnabledState(true);
+        setPermissionState(previousPermissionState);
+        setWorkspaceError('Live sharing could not be disabled right now.');
+      }
+
+      return;
+    }
+
+    try {
       await setDoc(
         doc(activeFirestore, 'rooms', ROOM_ID, 'members', session.id),
         {
           status: 'paused',
-          sharingEnabled: false,
-          location: null,
+          sharingEnabled: true,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
-      return;
+      setSharingEnabledState(true);
+    } catch {
+      setSharingEnabledState(false);
+      setWorkspaceError('Live sharing could not be enabled right now.');
     }
-
-    await setDoc(
-      doc(activeFirestore, 'rooms', ROOM_ID, 'members', session.id),
-      {
-        status: 'paused',
-        sharingEnabled: true,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
   }
 
   async function sendMessage(body: string) {
@@ -1006,8 +1024,35 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
     let active = true;
 
     async function resolveLocationAddress(coords: Location.LocationObjectCoords) {
-      if (canReuseResolvedAddress(coords, resolvedAddressRef.current)) {
-        return resolvedAddressRef.current?.label ?? null;
+      const now = Date.now();
+      const cached = resolvedAddressRef.current;
+
+      if (!canReuseResolvedAddress(coords, cached)) {
+        resolvedAddressRef.current = {
+          label: null,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          stableSince: now,
+          resolvedAt: null,
+        };
+        return null;
+      }
+
+      const stableLocation = resolvedAddressRef.current;
+
+      if (!stableLocation) {
+        return null;
+      }
+
+      if (now - stableLocation.stableSince < ADDRESS_DWELL_INTERVAL_MS) {
+        return stableLocation.label;
+      }
+
+      if (
+        stableLocation.resolvedAt !== null &&
+        stableLocation.resolvedAt >= stableLocation.stableSince
+      ) {
+        return stableLocation.label;
       }
 
       try {
@@ -1017,13 +1062,13 @@ export function WorkspaceProvider({ children }: PropsWithChildren) {
         });
         const label = formatPhysicalAddress(result);
         resolvedAddressRef.current = {
+          ...stableLocation,
           label,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
+          resolvedAt: now,
         };
         return label;
       } catch {
-        return resolvedAddressRef.current?.label ?? null;
+        return stableLocation.label;
       }
     }
 

@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppTheme } from '@/constants/theme';
 import { TeamMember } from '@/types/relay';
@@ -67,50 +67,69 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
     )
     .join('|');
   const webMapsApiKey = getGoogleMapsWebApiKey();
-  const mapHostRef = useRef<any>(null);
+  const mapHostRef = useRef<HTMLElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRefs = useRef<any[]>([]);
   const infoWindowRef = useRef<any>(null);
+  const [mapHostReady, setMapHostReady] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [mapRetryNonce, setMapRetryNonce] = useState(0);
 
-  useEffect(() => {
-    return () => {
-      markerRefs.current.forEach((marker) => marker.setMap(null));
-      markerRefs.current = [];
-      infoWindowRef.current?.close?.();
-      infoWindowRef.current = null;
-      mapInstanceRef.current = null;
-    };
+  const clearMapArtifacts = useCallback(() => {
+    markerRefs.current.forEach((marker) => marker.setMap(null));
+    markerRefs.current = [];
+    infoWindowRef.current?.close?.();
+    infoWindowRef.current = null;
+    mapInstanceRef.current = null;
+  }, []);
+
+  const setMapHost = useCallback((node: unknown) => {
+    const nextHost = node as HTMLElement | null;
+
+    if (mapHostRef.current === nextHost) {
+      return;
+    }
+
+    mapHostRef.current = nextHost;
+    setMapHostReady(Boolean(nextHost));
   }, []);
 
   useEffect(() => {
+    return () => {
+      clearMapArtifacts();
+    };
+  }, [clearMapArtifacts]);
+
+  useEffect(() => {
     if (!vehicleMarkers.length) {
-      markerRefs.current.forEach((marker) => marker.setMap(null));
-      markerRefs.current = [];
+      clearMapArtifacts();
       setMapReady(false);
       setMapError(null);
       return;
     }
 
     if (!webMapsApiKey) {
-      markerRefs.current.forEach((marker) => marker.setMap(null));
-      markerRefs.current = [];
+      clearMapArtifacts();
       setMapReady(false);
       setMapError(null);
       return;
     }
 
-    const mapHost = mapHostRef.current as HTMLElement | null;
+    const mapHostElement = mapHostRef.current;
 
-    if (!mapHost) {
+    if (!mapHostElement) {
+      setMapReady(false);
       return;
     }
 
+    const readyMapHost = mapHostElement;
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     setMapReady(false);
+    setMapError(null);
 
-    async function renderMap() {
+    async function renderMap(attempt = 0) {
       try {
         await loadGoogleMapsWebApi(webMapsApiKey);
 
@@ -124,10 +143,25 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
           throw new Error('Google Maps JavaScript API was not available.');
         }
 
+        if (
+          !readyMapHost.isConnected ||
+          readyMapHost.clientWidth === 0 ||
+          readyMapHost.clientHeight === 0
+        ) {
+          if (attempt < 8) {
+            retryTimer = setTimeout(() => {
+              void renderMap(attempt + 1);
+            }, 150);
+            return;
+          }
+
+          throw new Error('The browser map container was not ready.');
+        }
+
         if (!mapInstanceRef.current) {
           const firstLocation = vehicleMarkers[0].location;
 
-          mapInstanceRef.current = new googleMaps.Map(mapHost, {
+          mapInstanceRef.current = new googleMaps.Map(readyMapHost, {
             center: {
               lat: firstLocation.latitude,
               lng: firstLocation.longitude,
@@ -145,6 +179,7 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
         }
 
         const map = mapInstanceRef.current;
+        googleMaps.event.trigger(map, 'resize');
         markerRefs.current.forEach((marker) => marker.setMap(null));
 
         markerRefs.current = vehicleMarkers.map((member) => {
@@ -202,6 +237,13 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
         setMapError(null);
         setMapReady(true);
       } catch {
+        if (!cancelled && attempt < 2) {
+          retryTimer = setTimeout(() => {
+            void renderMap(attempt + 1);
+          }, 400);
+          return;
+        }
+
         if (!cancelled) {
           setMapError('The browser map could not be loaded right now.');
           setMapReady(false);
@@ -213,8 +255,20 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
 
     return () => {
       cancelled = true;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+      }
     };
-  }, [coordinateKey, currentUserId, markerStateKey, vehicleMarkers, webMapsApiKey]);
+  }, [
+    clearMapArtifacts,
+    coordinateKey,
+    currentUserId,
+    mapHostReady,
+    mapRetryNonce,
+    markerStateKey,
+    vehicleMarkers,
+    webMapsApiKey,
+  ]);
 
   if (!vehicleMarkers.length) {
     return (
@@ -232,8 +286,6 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
     );
   }
 
-  const showMapFallback = !webMapsApiKey || Boolean(mapError);
-
   return (
     <View style={styles.board}>
       <View style={styles.header}>
@@ -241,21 +293,35 @@ export function LiveMapBoard({ members, currentUserId }: LiveMapBoardProps) {
         <Text style={styles.subtitle}>{vehicleMarkers.length} active markers</Text>
       </View>
 
-      {showMapFallback ? (
+      {!webMapsApiKey ? (
         <View style={styles.noticeCard}>
           <MaterialIcons name="map" size={18} color={AppTheme.accentSoft} />
           <Text style={styles.noticeText}>
-            {webMapsApiKey
-              ? mapError ?? 'The browser map is unavailable right now.'
-              : 'Add EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY with a browser-restricted Maps JavaScript API key to enable the live web map.'}
+            Add EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY with a browser-restricted Maps JavaScript API
+            key to enable the live web map.
           </Text>
         </View>
       ) : (
         <View style={styles.mapSurface}>
-          <View ref={mapHostRef} style={styles.mapCanvas} />
-          {!mapReady ? (
+          <View ref={setMapHost} style={styles.mapCanvas} />
+          {!mapReady || mapError ? (
             <View style={styles.mapOverlay}>
-              <Text style={styles.mapOverlayText}>Loading live vehicle map...</Text>
+              <Text style={styles.mapOverlayText}>
+                {mapError ?? 'Loading live vehicle map...'}
+              </Text>
+              {mapError ? (
+                <Pressable
+                  onPress={() => {
+                    clearMapArtifacts();
+                    setMapError(null);
+                    setMapReady(false);
+                    setMapRetryNonce((value) => value + 1);
+                  }}
+                  style={styles.retryButton}>
+                  <MaterialIcons name="refresh" size={16} color={AppTheme.canvas} />
+                  <Text style={styles.retryButtonText}>Retry map</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
         </View>
@@ -343,11 +409,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(8, 27, 34, 0.26)',
     paddingHorizontal: 20,
+    gap: 12,
   },
   mapOverlayText: {
     color: AppTheme.text,
     fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 999,
+    backgroundColor: AppTheme.accentSoft,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  retryButtonText: {
+    color: AppTheme.canvas,
+    fontSize: 13,
+    fontWeight: '700',
   },
   list: {
     gap: 10,
